@@ -23,7 +23,7 @@ main(int argc, char **argv)
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_in sa;
 
-    if (argc < 3 || argc == 4) {
+    if (argc != 3 && argc != 5) {
         printf("usage: client <Optional: Tunnel IP/Name> <Optional: Tunnel Port> <Server IP/Name> <Server Port>\n");
         exit(1);
     }
@@ -57,6 +57,12 @@ main(int argc, char **argv)
     if (p == NULL) {
         printf("client: failed to connect\n");
         exit(1);
+    }
+
+    /* send server info to tunnel */
+    if (argc == 5) {
+        write(sockfd, argv[1], sizeof(argv[1]));
+        write(sockfd, argv[2], sizeof(argv[2]));
     }
 
     /* get hostname of server */
