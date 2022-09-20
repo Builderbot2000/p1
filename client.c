@@ -19,9 +19,10 @@ int
 main(int argc, char **argv)
 {
     int     sockfd, n;
-    char    recvline[MAXLINE + 1];
+    char    recvline[MAXLINE + 1], hostname[MAXLINE];
     // struct sockaddr_in servaddr;
     struct addrinfo hints, *servinfo, *p;
+    struct sockaddr_in sa;
 
     if (argc != 3) {
         printf("usage: client <IPaddress> <Portnum>\n");
@@ -78,6 +79,19 @@ main(int argc, char **argv)
         printf("client: failed to connect\n");
         exit(1);
     }
+
+    /* get hostname */
+    sa.sin_family = AF_INET;
+    sa.sin_port = htons(atoi(argv[2]));
+    if (inet_pton(AF_INET, argv[1], &sa.sin_addr) <= 0) {
+        printf("inet_pton error for %s\n", argv[1]);
+        exit(1);
+    }
+    int s;
+    if ((s = getnameinfo(&sa, sizeof(sa), hostname, sizeof(hostname), NULL, 0, 0)) != 0) {
+        fprintf(stderr, "getnameinfo: %s\n", gai_strerror(s));
+    }
+    printf("Server Name: %s\n", hostname);
 
     freeaddrinfo(servinfo);
 
