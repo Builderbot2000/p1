@@ -11,6 +11,7 @@
 #define MAXLINE     4096    /* max text line length */
 #define LISTENQ     1024    /* 2nd argument to listen() */
 #define DAYTIME_PORT 3333
+#define PAYLOADLINE 64
 
 struct message{
     int addrlen, timelen, msglen;
@@ -22,10 +23,16 @@ struct message{
 int
 main(int argc, char **argv)
 {
-    int     listenfd, connfd;
+    int    listenfd, connfd;
     struct sockaddr_in servaddr;
-    char    buff[MAXLINE];
+    char   tbuf[MAXLINE], abuf[16], wbuf[PAYLOADLINE], pbuf[MAXLINE], mbuf[MAXLINE];
+    char   padding[] = "     ";
     time_t ticks;
+    struct sockaddr curraddr;
+    socklen_t addrlen = sizeof(curraddr);
+    struct message msg;
+    FILE *fp;
+    int fpc;
 
     if (argc != 2) {
         printf("usage: server <Portnum>\n");
@@ -46,33 +53,56 @@ main(int argc, char **argv)
     for ( ; ; ) {
         connfd = accept(listenfd, (struct sockaddr *) NULL, NULL);
 
-        struct sockaddr curraddr;
-        bzero(&curraddr, sizeof(curraddr));
-        socklen_t addrlen = sizeof(curraddr);
-        struct message msg;
-
         /* obtain socket info */
+        bzero(&curraddr, sizeof(curraddr));
         getsockname(connfd, (struct sockaddr *)&curraddr, &addrlen);
 
         /* process socket info */
         memset(&msg, 0, sizeof msg);
         printf("addresslen: %d\n", (int)addrlen);
-        char buf[16];
-        inet_ntop(AF_INET, &curraddr.sa_data, buf, sizeof(buf));
-        printf("address: %s\n", buf);
+        inet_ntop(AF_INET, &curraddr.sa_data, abuf, sizeof(abuf));
+        printf("address: %s\n", abuf);
 
-        /* assemble message */
-        memcpy(msg.addr, buf, sizeof(buf));
+        /* fill message address */
+        memcpy(msg.addr, abuf, sizeof(abuf));
         msg.addrlen = (int)addrlen;
         msg.msglen = 0;
 
+        /* fill message time */
         ticks = time(NULL);
-        snprintf(buff, sizeof(buff), "%.24s\r\n", ctime(&ticks));
-        msg.timelen = sizeof(buff);
-        memcpy(msg.currtime, buff, sizeof(buff));
+        snprintf(tbuf, sizeof(tbuf), "%.24s\r\n", ctime(&ticks));
+        msg.timelen = (int)strlen(tbuf);
+        memcpy(msg.currtime, tbuf, sizeof(tbuf));
 
-        write(connfd, buff, strlen(buff));
-        printf("Sending response: %s", buff);
+        /* fill message payload */
+        fp = popen("who", "r");
+        if (fp == NULL) {
+            printf("popen returned NULL\n");
+            exit(1);
+        }
+        int line = 0;
+        while (fgets(wbuf, PAYLOADLINE, fp) != NULL) {
+            // printf("%s", wbuf);
+            if (line >= 1) strcat(pbuf, padding);
+            strcat(pbuf, wbuf);
+            line++;
+        }
+        memcpy(msg.payload, pbuf, MAXLINE);
+        printf("lines: %d\n", line);
+        printf("%s", pbuf);
+        printf("payload size: %ld\n", sizeof(pbuf));
+
+        fpc = pclose(fp);
+        if (fpc == -1) {
+            printf("pclose failed\n");
+            exit(1);
+        }
+        msg.msglen = sizeof(msg);
+
+        /* pack and transmit message */
+        snprintf(mbuf, MAXLINE, "IP Address: %s\nTime: %sWho: %s", msg.addr, msg.currtime, msg.payload);
+        printf("%s", mbuf);
+        write(connfd, mbuf, sizeof(mbuf));
 
         close(connfd);
     }
