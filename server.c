@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 
 #include <stdlib.h>
+#include <netdb.h>
 
 #define MAXLINE     4096    /* max text line length */
 #define LISTENQ     1024    /* 2nd argument to listen() */
@@ -24,12 +25,13 @@ int
 main(int argc, char **argv)
 {
     int    listenfd, connfd;
-    struct sockaddr_in servaddr;
+    struct sockaddr_in servaddr, psa;
     char   tbuf[MAXLINE], abuf[16], wbuf[PAYLOADLINE], pbuf[MAXLINE], mbuf[MAXLINE];
+    char   peername[MAXLINE], peeraddr[INET_ADDRSTRLEN];
     char   padding[] = "     ";
     time_t ticks;
-    struct sockaddr curraddr;
-    socklen_t addrlen = sizeof(curraddr);
+    struct sockaddr curraddr, peersock;
+    socklen_t addrlen = sizeof(curraddr), peerlen = sizeof(peersock);
     struct message msg;
     FILE *fp;
     int fpc;
@@ -103,6 +105,24 @@ main(int argc, char **argv)
         snprintf(mbuf, MAXLINE, "IP Address: %s\nTime: %sWho: %s", msg.addr, msg.currtime, msg.payload);
         printf("%s", mbuf);
         write(connfd, mbuf, sizeof(mbuf));
+
+        /* print peer info */
+        if (getpeername(connfd, &psa, &peerlen) != 0) {
+            printf("getpeername failed\n");
+        }
+        /*
+        psa.sin_family = AF_INET;
+        inet_ntop(AF_INET, &peersock, &peeraddr, INET_ADDRSTRLEN);
+        int r;
+        if ((r = inet_pton(AF_INET, peeraddr, &psa.sin_addr)) <= 0) {
+            printf("inet_pton error: %d\n", r);
+        }*/
+        int s;
+        if ((s = getnameinfo(&psa, sizeof(psa), peername, sizeof(peername), NULL, 0, 0)) != 0) {
+            fprintf(stderr, "getnameinfo: %s\n", gai_strerror(s));
+        }
+        printf("Requested by address: %s\n", inet_ntoa(psa.sin_addr));
+        printf("Requested by hostname: %s\n", peername);
 
         close(connfd);
     }
