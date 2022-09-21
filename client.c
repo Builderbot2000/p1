@@ -18,10 +18,11 @@
 int
 main(int argc, char **argv)
 {
-    int     sockfd, n;
-    char    recvline[MAXLINE + 1], hostname[MAXLINE];
+    int    sockfd, n, e;
+    char   recvline[MAXLINE + 1], servname[MAXLINE], tunname[MAXLINE];
+    char   *tempaddr, *sname, *sport, *tname, *tport;
     struct addrinfo hints, *servinfo, *p;
-    struct sockaddr_in sa;
+    struct sockaddr_in sa, *ad;
 
     if (argc != 3 && argc != 5) {
         printf("usage: client <Optional: Tunnel IP/Name> <Optional: Tunnel Port> <Server IP/Name> <Server Port>\n");
@@ -32,7 +33,6 @@ main(int argc, char **argv)
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    int e;
     if ((e = getaddrinfo(argv[1], argv[2], &hints, &servinfo)) != 0) {
         printf("getaddrinfo error: %s\n", gai_strerror(e));
         exit(1);
@@ -60,6 +60,8 @@ main(int argc, char **argv)
         exit(1);
     }
 
+    freeaddrinfo(servinfo);
+
     /* send server info to tunnel */
     if (argc == 5) {
         printf("Sent: %s\n", argv[3]);
@@ -73,17 +75,37 @@ main(int argc, char **argv)
     }
 
     /* get hostname of server */
+
+    if (argc == 3) {
+        sname = argv[1];
+        sport = argv[2];
+    }
+
+    if (argc == 5) {
+        sname = argv[3];
+        sport = argv[4];
+        tname = argv[1];
+        tport = argv[2];
+    }
+
     sa.sin_family = AF_INET;
-    sa.sin_port = htons(atoi(argv[2]));
-    if (inet_pton(AF_INET, argv[1], &sa.sin_addr) <= 0) {
-        printf("inet_pton error for %s\n", argv[1]);
+    sa.sin_port = htons(atoi(sport));
+    if (inet_pton(AF_INET, sname, &sa.sin_addr) <= 0) {
+        printf("inet_pton error for %s\n", sname);
         exit(1);
     }
-    int s;
-    if ((s = getnameinfo(&sa, sizeof(sa), hostname, sizeof(hostname), NULL, 0, 0)) != 0) {
-        fprintf(stderr, "getnameinfo: %s\n", gai_strerror(s));
+    if ((e = getnameinfo(&sa, sizeof(sa), servname, sizeof(servname), NULL, 0, 0)) != 0) {
+        fprintf(stderr, "getnameinfo: %s\n", gai_strerror(e));
     }
-    printf("Server Name: %s\n", hostname);
+
+    if ((e = getaddrinfo(sname, sport, &hints, &servinfo)) != 0) {
+        printf("getaddrinfo error: %s\n", gai_strerror(e));
+    }
+    ad = (struct sockaddr_in *)servinfo->ai_addr;
+    tempaddr = inet_ntoa(ad->sin_addr);
+
+    printf("Server Name: %s\n", servname);
+    printf("IP Address: %s\n", tempaddr);
 
     freeaddrinfo(servinfo);
 
@@ -94,6 +116,37 @@ main(int argc, char **argv)
             exit(1);
         }
     }
+
+    if (argc == 5) {
+        sa.sin_family = AF_INET;
+        sa.sin_port = htons(atoi(tport));
+        if (inet_pton(AF_INET, tname, &sa.sin_addr) <= 0) {
+            printf("inet_pton error for %s\n", tname);
+            exit(1);
+        }
+        if ((e = getnameinfo(&sa, sizeof(sa), tunname, sizeof(tunname), NULL, 0, 0)) != 0) {
+            fprintf(stderr, "getnameinfo: %s\n", gai_strerror(e));
+        }
+
+        if ((e = getaddrinfo(tname, tport, &hints, &servinfo)) != 0) {
+            printf("getaddrinfo error: %s\n", gai_strerror(e));
+        }
+        ad = (struct sockaddr_in *)servinfo->ai_addr;
+        tempaddr = inet_ntoa(ad->sin_addr);
+
+        printf("\nVia Tunnel: %s\n", tunname);
+        printf("IP Address: %s\n", tempaddr);
+        printf("Port Number: %s\n\n", tport);
+    }
+
+    if ((n = read(sockfd, recvline, MAXLINE)) > 0) {
+        recvline[n] = 0;        /* null terminate */
+        if (fputs(recvline, stdout) == EOF) {
+            printf("fputs error\n");
+            exit(1);
+        }
+    }
+
     if (n < 0) {
         perror("read error");
         exit(1);

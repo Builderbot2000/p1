@@ -87,7 +87,13 @@ main(int argc, char **argv)
                 exit(1);
             }
             mbuf[n] = 0;        /* null terminate */
-            printf("mbuf: %s\n", mbuf);
+            write(connfd, mbuf, MAXLINE);
+
+            if ((n = read(sockfd, mbuf, MAXLINE)) < 0) {
+                printf("read error\n");
+                exit(1);
+            }
+            mbuf[n] = 0;        /* null terminate */
             write(connfd, mbuf, MAXLINE);
 
             close(sockfd);
