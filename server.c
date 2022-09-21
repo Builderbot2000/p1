@@ -109,8 +109,12 @@ main(int argc, char **argv)
         msg.msglen = sizeof(msg);
 
         /* pack and transmit message */
-        snprintf(mbuf, MAXLINE, "IP Address: %s\nTime: %sWho: %s", msg.addr, msg.currtime, msg.payload);
-        printf("%s", mbuf);
+        snprintf(mbuf, MAXLINE, "Time: %s", msg.currtime);
+        // printf("%s", mbuf);
+        write(connfd, mbuf, sizeof(mbuf));
+        memset(mbuf, 0, sizeof(mbuf));
+        snprintf(mbuf, MAXLINE, "Who: %s", msg.payload);
+        // printf("%s", mbuf);
         write(connfd, mbuf, sizeof(mbuf));
 
         /* print peer info */
