@@ -16,10 +16,12 @@
 int
 main(int argc, char **argv)
 {
-    int    listenfd, connfd;
+    int    listenfd, connfd, sockfd, n;
     struct sockaddr_in servaddr;
+    char   servname[INET_ADDRSTRLEN], servport[5], mbuf[MAXLINE];
+    struct addrinfo hints, *servinfo, *p;
 
-    if (argc != 2) {
+    if (argc < 2) {
         printf("usage: tunnel <Portnum>\n");
         exit(1);
     }
@@ -36,16 +38,59 @@ main(int argc, char **argv)
     listen(listenfd, LISTENQ);
 
     for ( ; ; ) {
-        connfd = accept(listenfd, (struct sockaddr *) NULL, NULL);
 
-        /* Receive client request */
+            connfd = accept(listenfd, (struct sockaddr *) NULL, NULL);
 
-        /* Forward client request */
+            /* Receive client request */
+            read(connfd, servname, INET_ADDRSTRLEN);
+            printf("server name: %s\n", servname);
+            read(connfd, servport, sizeof(servport));
+            printf("server port: %s\n", servport);
 
-        /* Add tunnel signature */
+            /* Forward client request */
+	    memset(&hints, 0, sizeof hints);
+	    hints.ai_family = AF_INET;
+	    hints.ai_socktype = SOCK_STREAM;
 
-        /* Return message to client */
+            int e;
+	    if ((e = getaddrinfo(servname, servport, &hints, &servinfo)) != 0) {
+	        printf("getaddrinfo error: %s\n", gai_strerror(e));
+                exit(1);
+	    }
 
-        close(connfd);
+	    // loop through all the results and connect to the first we can
+	    for(p = servinfo; p != NULL; p = p->ai_next) {
+	        if ((sockfd = socket(p->ai_family, p->ai_socktype,
+	                p->ai_protocol)) == -1) {
+	            perror("client: socket creation failed");
+	            continue;
+	        }
+	        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+	            close(sockfd);
+	            perror("client: connect failed");
+	            continue;
+	        }
+	        break;
+	    }
+
+	    if (p == NULL) {
+	        printf("client: failed to connect\n");
+	        exit(1);
+	    }
+
+            freeaddrinfo(servinfo);
+            printf("successfully connected\n");
+
+            /* Request message from server and return message to client */
+	    if ((n = read(sockfd, mbuf, MAXLINE)) < 0) {
+                printf("read error\n");
+                exit(1);
+            }
+            mbuf[n] = 0;        /* null terminate */
+            printf("mbuf: %s\n", mbuf);
+            write(connfd, mbuf, MAXLINE);
+
+            close(sockfd);
+            close(connfd);
     }
 }

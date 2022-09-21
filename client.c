@@ -32,8 +32,9 @@ main(int argc, char **argv)
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    if (getaddrinfo(argv[1], argv[2], &hints, &servinfo) != 0) {
-        printf("getaddrinfo error\n");
+    int e;
+    if ((e = getaddrinfo(argv[1], argv[2], &hints, &servinfo)) != 0) {
+        printf("getaddrinfo error: %s\n", gai_strerror(e));
         exit(1);
     }
 
@@ -61,8 +62,14 @@ main(int argc, char **argv)
 
     /* send server info to tunnel */
     if (argc == 5) {
-        write(sockfd, argv[1], sizeof(argv[1]));
-        write(sockfd, argv[2], sizeof(argv[2]));
+        printf("Sent: %s\n", argv[3]);
+        if (write(sockfd, argv[3], INET_ADDRSTRLEN) == -1) {
+            perror("First Write Error: ");
+        }
+        printf("Sent: %s\n", argv[4]);
+        if (write(sockfd, argv[4], sizeof(argv[2])) == -1) {
+            perror("Second Write Error: ");
+        }
     }
 
     /* get hostname of server */
@@ -80,7 +87,7 @@ main(int argc, char **argv)
 
     freeaddrinfo(servinfo);
 
-    while ( (n = read(sockfd, recvline, MAXLINE)) > 0) {
+    if ((n = read(sockfd, recvline, MAXLINE)) > 0) {
         recvline[n] = 0;        /* null terminate */
         if (fputs(recvline, stdout) == EOF) {
             printf("fputs error\n");
@@ -88,7 +95,7 @@ main(int argc, char **argv)
         }
     }
     if (n < 0) {
-        printf("read error\n");
+        perror("read error");
         exit(1);
     }
 

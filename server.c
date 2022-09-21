@@ -55,12 +55,19 @@ main(int argc, char **argv)
     for ( ; ; ) {
         connfd = accept(listenfd, (struct sockaddr *) NULL, NULL);
 
+        /* Empty all buffers */
+        memset(&msg, 0, sizeof (msg));
+        memset(tbuf, 0, sizeof(tbuf));
+        memset(abuf, 0, sizeof(abuf));
+        memset(wbuf, 0, sizeof(wbuf));
+        memset(pbuf, 0, sizeof(pbuf));
+        memset(mbuf, 0, sizeof(mbuf));
+
         /* obtain socket info */
         bzero(&curraddr, sizeof(curraddr));
         getsockname(connfd, (struct sockaddr *)&curraddr, &addrlen);
 
         /* process socket info */
-        memset(&msg, 0, sizeof msg);
         printf("addresslen: %d\n", (int)addrlen);
         inet_ntop(AF_INET, &curraddr.sa_data, abuf, sizeof(abuf));
         printf("address: %s\n", abuf);
@@ -110,13 +117,6 @@ main(int argc, char **argv)
         if (getpeername(connfd, &psa, &peerlen) != 0) {
             printf("getpeername failed\n");
         }
-        /*
-        psa.sin_family = AF_INET;
-        inet_ntop(AF_INET, &peersock, &peeraddr, INET_ADDRSTRLEN);
-        int r;
-        if ((r = inet_pton(AF_INET, peeraddr, &psa.sin_addr)) <= 0) {
-            printf("inet_pton error: %d\n", r);
-        }*/
         int s;
         if ((s = getnameinfo(&psa, sizeof(psa), peername, sizeof(peername), NULL, 0, 0)) != 0) {
             fprintf(stderr, "getnameinfo: %s\n", gai_strerror(s));
