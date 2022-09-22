@@ -26,7 +26,7 @@ main(int argc, char **argv)
     struct sockaddr_in sa, *ad;
 
     if (argc != 3 && argc != 5) {
-        printf("usage: client <Optional: Tunnel IP/Name> <Optional: Tunnel Port> <Server IP/Name> <Server Port>\n");
+        printf("usage: client optional:<tunnel_ip/name> optional<tunnel_port> <server_ip/name> <server_port>\n");
         exit(1);
     }
 
