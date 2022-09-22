@@ -19,6 +19,7 @@ int
 main(int argc, char **argv)
 {
     int    sockfd, n, e;
+    int    tnameflag = 1, snameflag = 1;  // name flag: indicates if input name argument is a hostname or ip
     char   recvline[MAXLINE + 1], servname[MAXLINE], tunname[MAXLINE];
     char   *tempaddr, *sname, *sport, *tname, *tport;
     struct addrinfo hints, *servinfo, *p;
@@ -28,6 +29,24 @@ main(int argc, char **argv)
         printf("usage: client <Optional: Tunnel IP/Name> <Optional: Tunnel Port> <Server IP/Name> <Server Port>\n");
         exit(1);
     }
+
+    if (argc == 3) {
+        sname = argv[1];
+        sport = argv[2];
+    }
+
+    if (argc == 5) {
+        sname = argv[3];
+        sport = argv[4];
+        tname = argv[1];
+        tport = argv[2];
+    }
+
+    /* Set name flags and arg references */
+    struct sockaddr_in ipv4test;
+    snameflag = inet_pton(AF_INET, sname, &(sa.sin_addr));
+    memset(&ipv4test, 0, sizeof ipv4test);
+    if (argc == 5) tnameflag = inet_pton(AF_INET, tname, &(sa.sin_addr));
 
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
@@ -62,20 +81,7 @@ main(int argc, char **argv)
 
     freeaddrinfo(servinfo);
 
-    /* send server info to tunnel */
-    if (argc == 5) {
-        printf("Sent: %s\n", argv[3]);
-        if (write(sockfd, argv[3], INET_ADDRSTRLEN) == -1) {
-            perror("First Write Error: ");
-        }
-        printf("Sent: %s\n", argv[4]);
-        if (write(sockfd, argv[4], sizeof(argv[2])) == -1) {
-            perror("Second Write Error: ");
-        }
-    }
-
     /* get hostname of server */
-
     if (argc == 3) {
         sname = argv[1];
         sport = argv[2];
@@ -88,14 +94,18 @@ main(int argc, char **argv)
         tport = argv[2];
     }
 
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(atoi(sport));
-    if (inet_pton(AF_INET, sname, &sa.sin_addr) <= 0) {
-        printf("inet_pton error for %s\n", sname);
-        exit(1);
+    if (snameflag == 1) {
+        sa.sin_family = AF_INET;
+        sa.sin_port = htons(atoi(sport));
+        if (inet_pton(AF_INET, sname, &sa.sin_addr) <= 0) {
+            printf("inet_pton failed for %s\n", sname);
+        }
+        if ((e = getnameinfo(&sa, sizeof(sa), servname, sizeof(servname), NULL, 0, 0)) != 0) {
+            fprintf(stderr, "getnameinfo: %s\n", gai_strerror(e));
+        }
     }
-    if ((e = getnameinfo(&sa, sizeof(sa), servname, sizeof(servname), NULL, 0, 0)) != 0) {
-        fprintf(stderr, "getnameinfo: %s\n", gai_strerror(e));
+    else {
+        memcpy(servname, sname, strlen(sname));
     }
 
     if ((e = getaddrinfo(sname, sport, &hints, &servinfo)) != 0) {
@@ -103,6 +113,18 @@ main(int argc, char **argv)
     }
     ad = (struct sockaddr_in *)servinfo->ai_addr;
     tempaddr = inet_ntoa(ad->sin_addr);
+
+    /* send server info to tunnel */
+    if (argc == 5) {
+        // printf("Sent: %s\n", tempaddr);
+        if (write(sockfd, tempaddr, INET_ADDRSTRLEN) == -1) {
+            perror("Server name write error: ");
+        }
+        // printf("Sent: %s\n", sport);
+        if (write(sockfd, sport, sizeof(sport)) == -1) {
+            perror("server port write error: ");
+        }
+    }
 
     printf("Server Name: %s\n", servname);
     printf("IP Address: %s\n", tempaddr);
@@ -118,16 +140,19 @@ main(int argc, char **argv)
     }
 
     if (argc == 5) {
-        sa.sin_family = AF_INET;
-        sa.sin_port = htons(atoi(tport));
-        if (inet_pton(AF_INET, tname, &sa.sin_addr) <= 0) {
-            printf("inet_pton error for %s\n", tname);
-            exit(1);
+        if (tnameflag == 1) {
+            sa.sin_family = AF_INET;
+            sa.sin_port = htons(atoi(tport));
+            if (inet_pton(AF_INET, tname, &sa.sin_addr) <= 0) {
+                printf("inet_pton failed for %s\n", tname);
+            }
+            if ((e = getnameinfo(&sa, sizeof(sa), tunname, sizeof(tunname), NULL, 0, 0)) != 0) {
+                fprintf(stderr, "getnameinfo: %s\n", gai_strerror(e));
+            }
         }
-        if ((e = getnameinfo(&sa, sizeof(sa), tunname, sizeof(tunname), NULL, 0, 0)) != 0) {
-            fprintf(stderr, "getnameinfo: %s\n", gai_strerror(e));
+        else {
+            memcpy(tunname, tname, strlen(tname));
         }
-
         if ((e = getaddrinfo(tname, tport, &hints, &servinfo)) != 0) {
             printf("getaddrinfo error: %s\n", gai_strerror(e));
         }

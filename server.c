@@ -68,9 +68,9 @@ main(int argc, char **argv)
         getsockname(connfd, (struct sockaddr *)&curraddr, &addrlen);
 
         /* process socket info */
-        printf("addresslen: %d\n", (int)addrlen);
+        // printf("addresslen: %d\n", (int)addrlen);
         inet_ntop(AF_INET, &curraddr.sa_data, abuf, sizeof(abuf));
-        printf("address: %s\n", abuf);
+        // printf("address: %s\n", abuf);
 
         /* fill message address */
         memcpy(msg.addr, abuf, sizeof(abuf));
@@ -97,9 +97,9 @@ main(int argc, char **argv)
             line++;
         }
         memcpy(msg.payload, pbuf, MAXLINE);
-        printf("lines: %d\n", line);
-        printf("%s", pbuf);
-        printf("payload size: %ld\n", sizeof(pbuf));
+        // printf("lines: %d\n", line);
+        // printf("%s", pbuf);
+        // printf("payload size: %ld\n", sizeof(pbuf));
 
         fpc = pclose(fp);
         if (fpc == -1) {
@@ -125,8 +125,9 @@ main(int argc, char **argv)
         if ((s = getnameinfo(&psa, sizeof(psa), peername, sizeof(peername), NULL, 0, 0)) != 0) {
             fprintf(stderr, "getnameinfo: %s\n", gai_strerror(s));
         }
-        printf("Requested by address: %s\n", inet_ntoa(psa.sin_addr));
-        printf("Requested by hostname: %s\n", peername);
+        printf("Requested by: \n");
+        printf("    Name: %s\n", peername);
+        printf("    IP Address: %s\n", inet_ntoa(psa.sin_addr));
 
         close(connfd);
     }

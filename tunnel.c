@@ -43,9 +43,9 @@ main(int argc, char **argv)
 
             /* Receive client request */
             read(connfd, servname, INET_ADDRSTRLEN);
-            printf("server name: %s\n", servname);
+            // printf("server name: %s\n", servname);
             read(connfd, servport, sizeof(servport));
-            printf("server port: %s\n", servport);
+            // printf("server port: %s\n", servport);
 
             /* Forward client request */
 	    memset(&hints, 0, sizeof hints);
@@ -55,7 +55,6 @@ main(int argc, char **argv)
             int e;
 	    if ((e = getaddrinfo(servname, servport, &hints, &servinfo)) != 0) {
 	        printf("getaddrinfo error: %s\n", gai_strerror(e));
-                exit(1);
 	    }
 
 	    // loop through all the results and connect to the first we can
@@ -79,7 +78,7 @@ main(int argc, char **argv)
 	    }
 
             freeaddrinfo(servinfo);
-            printf("successfully connected\n");
+            // printf("successfully connected\n");
 
             /* Request message from server and return message to client */
 	    if ((n = read(sockfd, mbuf, MAXLINE)) < 0) {
@@ -96,7 +95,5 @@ main(int argc, char **argv)
             mbuf[n] = 0;        /* null terminate */
             write(connfd, mbuf, MAXLINE);
 
-            close(sockfd);
-            close(connfd);
     }
 }
